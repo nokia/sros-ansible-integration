@@ -1,0 +1,31 @@
+namespace: nokia
+name: sros
+version: 2.0.0
+readme: README.md
+authors:
+- Sven Wisotzky <sven.wisotzky@nokia.com>
+description: Ansible collection to support networking devices running Nokia SR OS
+license: BSD-3-Clause
+tags:
+- backup
+- nokia
+- sros
+- timos
+- netconf
+- cli
+- cliconf
+- terminal
+dependencies:
+  ansible.netcommon: ">=5.2.0"
+  ansible.utils: ">=3.0.0"
+repository: https://github.com/nokia/sros-ansible
+documentation: https://github.com/nokia/sros-ansible
+homepage: https://github.com/nokia/sros-ansible
+issues: https://github.com/nokia/sros-ansible/issues
+
+build_ignore:
+  - .github/
+  - tools/
+  - tests/
+  - CHANGELOG.md
+  - CONTRIBUTING.md

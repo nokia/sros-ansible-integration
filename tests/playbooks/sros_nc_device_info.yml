@@ -1,0 +1,19 @@
+# Copyright 2025 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+---
+- hosts: clab-ansible-md
+  gather_facts: No
+  connection: netconf     
+
+  tasks:
+  - name: get device info
+    nokia.sros.device_info:
+    register: device_info
+
+  - name: display device info
+    debug:
+      msg: |
+        {{device_info.output}}
+...

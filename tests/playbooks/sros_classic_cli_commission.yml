@@ -1,0 +1,22 @@
+# Copyright 2025 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+---
+- hosts: clab-ansible-classic
+  gather_facts: No
+
+  tasks:
+    - name: Enable Classic Mode with Rollback Support
+      ansible.netcommon.cli_command:
+        command: "{{item}}"
+      loop:
+        - edit-config private
+        - /configure system management-interface cli cli-engine [classic-cli md-cli]
+        - /configure system management-interface configuration-mode classic
+        - commit
+        - /!classic-cli
+        - file md cf3:/rollbacks
+        - configure system rollback rollback-location cf3:/rollbacks/config
+        - admin rollback save
+...

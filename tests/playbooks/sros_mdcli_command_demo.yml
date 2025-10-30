@@ -1,0 +1,53 @@
+# Copyright 2025 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+---
+- hosts: clab-ansible-md
+  gather_facts: No
+
+  tasks:
+  - name: get system information
+    ansible.netcommon.cli_command:
+      command: show system information
+    register: output1
+
+  - name: switch mode classic
+    ansible.netcommon.cli_command:
+      command: /!classic-cli
+    register: output2
+
+  - name: file dir (classic)
+    ansible.netcommon.cli_command:
+      command: file dir
+    register: output3
+
+  - name: switch mode md-cli
+    ansible.netcommon.cli_command:
+      command: /!md-cli
+    register: output4
+
+  - name: show version
+    ansible.netcommon.cli_command:
+      command: show version
+    register: output5
+
+  - name: reboot node (abort)
+    ansible.netcommon.cli_command:
+      command: admin reboot
+      prompt:
+        - "Are you sure you want to reboot (y/n)?"
+      answer:
+        - 'n'
+    register: output6
+
+  - name: display system information
+    debug:
+      msg: |
+        {{output1.stdout}}
+        {{output2.stdout}}
+        {{output3.stdout}}
+        {{output4.stdout}}
+        {{output5.stdout}}
+        {{output6.stdout}}
+...

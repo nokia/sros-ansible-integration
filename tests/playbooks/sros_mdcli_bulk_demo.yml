@@ -1,0 +1,30 @@
+# Copyright 2025 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+---
+- hosts: clab-ansible-md
+  gather_facts: No
+
+  tasks:
+  - name: add services
+    ansible.netcommon.cli_config:
+      config: "{{ lookup('ansible.builtin.template', '{{ playbook_dir }}/templates/addVplsBulk.cli.j2') }}"
+
+
+  - name: admin save
+    ansible.netcommon.cli_command:
+      command: admin save
+    vars:
+      ansible_command_timeout: 60
+
+  - name: delete services
+    ansible.netcommon.cli_config:
+      config: "{{ lookup('ansible.builtin.template', '{{ playbook_dir }}/templates/delVplsBulk.cli.j2') }}"
+
+  - name: admin save
+    ansible.netcommon.cli_command:
+      command: admin save
+    vars:
+      ansible_command_timeout: 60
+...

@@ -1,0 +1,78 @@
+---
+name: CICD
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    env:
+      SRSIM_LICENSE: ${{ secrets.SRSIM_LICENSE }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+        sros-version: ['25.7.R2', '25.10.R1']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssh-dev
+
+      - name: Install Python Requirements
+        run: pip install -r requirements.txt
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install ansible.netcommon ansible.utils community.general
+
+      - name: Build and install this collection
+        run: |
+          ansible-galaxy collection install .
+
+      - name: Install containerlab
+        run: bash -c "$(curl -sL https://get.containerlab.dev)"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull nokia_srsim docker image
+        run: |
+          docker pull ghcr.io/nokia/nokia_srsim:${{ matrix.sros-version }}
+#          docker pull ghcr.io/nokia/srlinux:latest
+
+      - name: Create license file
+        run: |
+          echo $SRSIM_LICENSE > tests/license.txt
+
+      - name: Run Tests
+        run: |
+          cd tests
+          chmod +x run.sh
+          ./run.sh deploy
+          cat clab-ansible/ansible-inventory.yml
+          ./run.sh run --category all --quiet --all
+          ./run.sh destroy

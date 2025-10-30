@@ -1,0 +1,29 @@
+commission:
+  playbook: playbooks/sros_classic_cli_commission.yml
+
+categories:
+  classic-cli:
+    description: "Test cases using classic CLI mode"
+    playbooks:
+      - playbooks/sros_classic_cli_config_demo.yml --diff
+      - playbooks/sros_classic_cli_backup_restore_demo.yml
+      - playbooks/sros_classic_cli_command_demo.yml
+
+  md-cli:
+    description: "Test cases using mode-driven CLI mode"
+    playbooks:
+      - playbooks/sros_mdcli_config_demo.yml --diff
+      - playbooks/sros_mdcli_backup_restore_demo.yml
+      - playbooks/sros_mdcli_bulk_demo.yml --diff
+      - playbooks/sros_mdcli_command_demo.yml
+
+  common-cli:
+    description: "Common CLI test cases (classic and md)"
+    playbooks:
+      - playbooks/sros_cli_device_info.yml
+
+  netconf:
+    description: "NETCONF transport and state validation"
+    playbooks:
+      - playbooks/sros_nc_device_info.yml
+      - playbooks/sros_nc_state_demo.yml

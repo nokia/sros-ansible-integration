@@ -1,0 +1,28 @@
+# Copyright 2025 Nokia
+# Licensed under the BSD 3-Clause License.
+# SPDX-License-Identifier: BSD-3-Clause
+
+---
+- hosts: clab-ansible-md
+  gather_facts: No
+
+  tasks:
+  - name: do some config
+    cli_config:
+      config: |
+        configure system
+          contact nobody
+          location hamburg
+          exit all
+
+  - name: do rollback
+    cli_config:
+      rollback: 1
+
+  - name: backup
+    cli_config:
+      backup: yes
+      backup_options:
+        filename: "{{ inventory_hostname }}.cfg"
+        dir_path: /tmp
+...
