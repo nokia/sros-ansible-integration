@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 ---
-- hosts: clab-ansible-md
+- hosts: nokia_srsim
   gather_facts: No
 
   tasks:

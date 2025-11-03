@@ -6,7 +6,7 @@
 #      ./run.sh <command> [options]
 #
 #    Commands:
-#      deploy      Deploy containerlab topology and run commission playbook
+#      deploy      Deploy containerlab topology
 #      run         Run categorized playbooks
 #      destroy     Destroy containerlab topology
 #      sanity      Full sequence: deploy, run, destroy
@@ -74,30 +74,12 @@ for p in data.get("categories", {}).get(cat, {}).get("playbooks", []): print(p)
 EOF
 }
 
-yaml_commission() {
-python3 - "$PLAYBOOK_FILE" << EOF
-import sys, yaml
-data = yaml.safe_load(open(sys.argv[1]))
-print(data.get("commission", {}).get("playbook", "") or "")
-EOF
-}
-
 # --- Containerlab Lifecycle --------------------------------------------------
 
 start_lab() {
   log INFO "Deploying containerlab topology: $TOPOLOGY_FILE"
   sudo containerlab deploy -t "$TOPOLOGY_FILE" --reconfigure
   log OK "Containerlab deployed successfully"
-
-  local commission_playbook
-  commission_playbook=$(yaml_commission)
-
-  if [[ -n "$commission_playbook" && -f "$commission_playbook" ]]; then
-    log INFO "Running commission playbook: $commission_playbook"
-    run_playbook "$commission_playbook"
-  else
-    log INFO "No commission playbook defined or not found"
-  fi
 }
 
 stop_lab() {
@@ -189,5 +171,5 @@ case "$COMMAND" in
   destroy) stop_lab ;;
   sanity) sanity_run ;;
   help) grep '^#  ' "$0" | sed 's/^# \{0,4\}//'; exit 0 ;;
-  *) echo "Usage: $0 {deploy|run|destroy|sanity}"; exit 1 ;;
+  *) echo "Usage: $0 {deploy|run|destroy|sanity|help}"; exit 1 ;;
 esac

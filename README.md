@@ -62,7 +62,7 @@ In your Ansible inventory, specify the network OS for your SR OS hosts:
 ansible_network_os: nokia.sros.<mode>
 ```
 
-Where `<mode>` can be `classic`, `md`, or `light`.
+Where `<mode>` can be `md`, `classic`, or `light`.
 
 Detailed tutorials are available on the
 **[Nokia Network Developer Portal](https://network.developer.nokia.com/sr/learn/sr-os-ansible)**.
@@ -74,18 +74,6 @@ Detailed tutorials are available on the
 This repository contains sample playbooks demonstrating how to use the collection.
 They can also serve as regression tests.
 
-### Classic CLI
-
-* [sros_classic_cli_command_demo.yml](tests/playbooks/sros_classic_cli_command_demo.yml)
-* [sros_classic_cli_config_demo.yml](tests/playbooks/sros_classic_cli_config_demo.yml)
-* [sros_classic_cli_backup_restore_demo.yml](tests/playbooks/sros_classic_cli_backup_restore_demo.yml)
-
-### MD-CLI
-
-* [sros_mdcli_command_demo.yml](tests/playbooks/sros_mdcli_command_demo.yml)
-* [sros_mdcli_config_demo.yml](tests/playbooks/sros_mdcli_config_demo.yml)
-* [sros_mdcli_backup_restore_demo.yml](tests/playbooks/sros_mdcli_backup_restore_demo.yml)
-
 ### NETCONF
 
 * [sros_nc_state_demo.yml](tests/playbooks/sros_nc_state_demo.yml)
@@ -94,6 +82,18 @@ They can also serve as regression tests.
 
 * [sros_cli_device_info.yml](tests/playbooks/sros_cli_device_info.yml)
 * [sros_nc_device_info.yml](tests/playbooks/sros_nc_device_info.yml)
+
+### MD-CLI
+
+* [sros_mdcli_command_demo.yml](tests/playbooks/sros_mdcli_command_demo.yml)
+* [sros_mdcli_config_demo.yml](tests/playbooks/sros_mdcli_config_demo.yml)
+* [sros_mdcli_backup_restore_demo.yml](tests/playbooks/sros_mdcli_backup_restore_demo.yml)
+
+### Classic CLI
+
+* [sros_classic_cli_command_demo.yml](tests/playbooks/sros_classic_cli_command_demo.yml)
+* [sros_classic_cli_config_demo.yml](tests/playbooks/sros_classic_cli_config_demo.yml)
+* [sros_classic_cli_backup_restore_demo.yml](tests/playbooks/sros_classic_cli_backup_restore_demo.yml)
 
 ---
 

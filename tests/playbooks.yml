@@ -1,6 +1,3 @@
-commission:
-  playbook: playbooks/sros_classic_cli_commission.yml
-
 categories:
   classic-cli:
     description: "Test cases using classic CLI mode"
