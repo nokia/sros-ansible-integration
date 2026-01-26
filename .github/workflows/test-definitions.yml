@@ -1,0 +1,15 @@
+# Centralized Test Matrix Definition
+# This file is the single source of truth for test configurations
+
+test_matrix:
+  python_versions:
+    - '3.13'
+    - '3.14'
+  
+  sros_versions:
+    - '25.7.R2'
+    - '25.10.R1'
+  
+  ansible_versions:
+    - '2.17'
+    - '2.18'
