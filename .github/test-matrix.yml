@@ -1,5 +1,6 @@
-# Centralized Test Matrix Definition
-# This file is the single source of truth for test configurations
+# Test Matrix Configuration
+# Single source of truth for all CI/CD test configurations
+# This file defines which version combinations are tested
 
 test_matrix:
   python_versions:

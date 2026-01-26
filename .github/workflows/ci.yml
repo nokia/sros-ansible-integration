@@ -31,7 +31,7 @@ jobs:
           import yaml
           import json
           
-          with open('.github/workflows/test-definitions.yml', 'r') as f:
+          with open('.github/test-matrix.yml', 'r') as f:
               config = yaml.safe_load(f)
           
           test_matrix = config['test_matrix']
