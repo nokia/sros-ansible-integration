@@ -82,7 +82,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install Ansible (specific version)
-        run: pip install "ansible==${{ matrix.ansible-version }}.*"
+        run: pip install "ansible-core==${{ matrix.ansible-version }}.*"
 
       - name: Install Ansible collections
         run: |
