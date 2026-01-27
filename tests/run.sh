@@ -6,7 +6,7 @@
 #      ./run.sh <command> [options]
 #
 #    Commands:
-#      deploy      Deploy containerlab topology and run commission playbook
+#      deploy      Deploy containerlab topology
 #      run         Run categorized playbooks
 #      destroy     Destroy containerlab topology
 #      sanity      Full sequence: deploy, run, destroy
@@ -16,13 +16,21 @@
 #      -t, --topo <file>        Containerlab topology file (default: ./topo.clab.yml)
 #      -p, --playbooks <file>   Playbook YAML inventory (default: ./playbooks.yml)
 #      -c, --category <name>    Run only a specific category (default: all)
-#      -q, --quiet              Suppress Ansible playbook logs
+#      -q, --quiet              Suppress Ansible playbook console output
 #      -a, --all                Run all tests aka continue on error
+#      -l, --log <file>         Log file path for detailed test results
+#      -n, --lab-name <name>    Override lab name (default: from topo.clab.yml)
+#
+#    Environment Variables:
+#      LAB_NAME                 Override lab name for parallel execution
+#      LOG_FILE                 Path to log file for test results
+#      SROS_VERSION             SR OS version for containerlab (e.g., 25.7.R2)
 #
 #    Example:
 #      ./run.sh deploy
-#      ./run.sh run --category all --quiet --all
+#      ./run.sh run --category all --quiet --all --log results.log
 #      ./run.sh destroy
+#      LAB_NAME="test-123" ./run.sh sanity --all
 #
 
 set -euo pipefail
@@ -34,8 +42,15 @@ PLAYBOOK_FILE="./playbooks.yml"
 CATEGORY=""
 RUN_ALL=false
 QUIET=false
+LOG_FILE="${LOG_FILE:-}"
+LAB_NAME="${LAB_NAME:-}"
 
 # --- Logging -----------------------------------------------------------------
+
+# Initialize test summary counters
+TESTS_PASSED=0
+TESTS_FAILED=0
+FAILED_TESTS=()
 
 log() {
   local bold="\033[1m"
@@ -46,13 +61,49 @@ log() {
 
   local level="$1"; shift
   local msg="$*"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  
   case "$level" in
-    BOLD) echo -e "${bold}${color_yellow}[INFO]${reset} ${bold}$msg${reset}" ;;
-    INFO) echo -e "${color_yellow}[INFO]${reset} $msg" ;;
-    OK) echo -e "${color_green}[OK]${reset} $msg" ;;
-    FAIL) echo -e "${color_red}[FAIL]${reset} $msg" ;;
-    *) echo "$msg" ;;
+    BOLD) 
+      echo -e "${bold}${color_yellow}[INFO]${reset} ${bold}$msg${reset}"
+      [[ -n "$LOG_FILE" ]] && echo "[$timestamp] [INFO] $msg" >> "$LOG_FILE"
+      ;;
+    INFO) 
+      echo -e "${color_yellow}[INFO]${reset} $msg"
+      [[ -n "$LOG_FILE" ]] && echo "[$timestamp] [INFO] $msg" >> "$LOG_FILE"
+      ;;
+    OK) 
+      echo -e "${color_green}[OK]${reset} $msg"
+      [[ -n "$LOG_FILE" ]] && echo "[$timestamp] [OK] $msg" >> "$LOG_FILE"
+      ;;
+    FAIL) 
+      echo -e "${color_red}[FAIL]${reset} $msg"
+      [[ -n "$LOG_FILE" ]] && echo "[$timestamp] [FAIL] $msg" >> "$LOG_FILE"
+      ;;
+    *) 
+      echo "$msg"
+      [[ -n "$LOG_FILE" ]] && echo "[$timestamp] $msg" >> "$LOG_FILE"
+      ;;
   esac
+}
+
+print_summary() {
+  local total=$((TESTS_PASSED + TESTS_FAILED))
+  log INFO "========================================="
+  log INFO "Test Summary"
+  log INFO "========================================="
+  log INFO "Total tests:  $total"
+  log OK "Passed:       $TESTS_PASSED"
+  [[ $TESTS_FAILED -gt 0 ]] && log FAIL "Failed:       $TESTS_FAILED" || log INFO "Failed:       $TESTS_FAILED"
+  
+  if [[ $TESTS_FAILED -gt 0 ]]; then
+    log INFO ""
+    log INFO "Failed tests:"
+    for test in "${FAILED_TESTS[@]}"; do
+      log FAIL "  - $test"
+    done
+  fi
+  log INFO "========================================="
 }
 
 # --- YAML Helpers ------------------------------------------------------------
@@ -74,35 +125,35 @@ for p in data.get("categories", {}).get(cat, {}).get("playbooks", []): print(p)
 EOF
 }
 
-yaml_commission() {
-python3 - "$PLAYBOOK_FILE" << EOF
-import sys, yaml
-data = yaml.safe_load(open(sys.argv[1]))
-print(data.get("commission", {}).get("playbook", "") or "")
-EOF
-}
-
 # --- Containerlab Lifecycle --------------------------------------------------
 
 start_lab() {
-  log INFO "Deploying containerlab topology: $TOPOLOGY_FILE"
-  sudo containerlab deploy -t "$TOPOLOGY_FILE" --reconfigure
-  log OK "Containerlab deployed successfully"
-
-  local commission_playbook
-  commission_playbook=$(yaml_commission)
-
-  if [[ -n "$commission_playbook" && -f "$commission_playbook" ]]; then
-    log INFO "Running commission playbook: $commission_playbook"
-    run_playbook "$commission_playbook"
+  local topo_args="-t $TOPOLOGY_FILE --reconfigure"
+  
+  # If LAB_NAME is set, override the lab name
+  if [[ -n "$LAB_NAME" ]]; then
+    log INFO "Deploying containerlab with custom lab name: $LAB_NAME"
+    topo_args="$topo_args --name $LAB_NAME"
   else
-    log INFO "No commission playbook defined or not found"
+    log INFO "Deploying containerlab topology: $TOPOLOGY_FILE"
   fi
+  
+  sudo containerlab deploy $topo_args
+  log OK "Containerlab deployed successfully"
 }
 
 stop_lab() {
-  log INFO "Destroying containerlab topology"
-  sudo containerlab destroy -t "$TOPOLOGY_FILE" || true
+  local topo_args="-t $TOPOLOGY_FILE"
+  
+  # If LAB_NAME is set, use it for destroy
+  if [[ -n "$LAB_NAME" ]]; then
+    log INFO "Destroying containerlab: $LAB_NAME"
+    topo_args="$topo_args --name $LAB_NAME"
+  else
+    log INFO "Destroying containerlab topology"
+  fi
+  
+  sudo containerlab destroy $topo_args || true
   log OK "Containerlab destroyed"
 }
 
@@ -111,31 +162,53 @@ stop_lab() {
 run_playbook() {
   local pb="${1:-}"
   local start_time=$(date +%s)
+  local result=0
+
+  # Create a temporary log file for this playbook execution
+  local pb_log_file=""
+  if [[ -n "$LOG_FILE" ]]; then
+    pb_log_file="${LOG_FILE%.log}-$(basename ${pb%% *}).log"
+  fi
 
   # Execute quietly or verbosely
   set +e
   if $QUIET; then
     log INFO "Running: ansible-playbook $pb"
-    ansible-playbook $pb >/dev/null 2>&1 || result=$?
+    if [[ -n "$pb_log_file" ]]; then
+      ansible-playbook $pb > "$pb_log_file" 2>&1
+      result=$?
+    else
+      ansible-playbook $pb >/dev/null 2>&1
+      result=$?
+    fi
   else
     log BOLD "Running: ansible-playbook $pb"
-    ANSIBLE_FORCE_COLOR=true ansible-playbook $pb 2>&1 | sed 's/^/    /'
-    result=${PIPESTATUS[0]}
+    if [[ -n "$pb_log_file" ]]; then
+      ANSIBLE_FORCE_COLOR=true ansible-playbook $pb 2>&1 | tee "$pb_log_file" | sed 's/^/    /'
+      result=${PIPESTATUS[0]}
+    else
+      ANSIBLE_FORCE_COLOR=true ansible-playbook $pb 2>&1 | sed 's/^/    /'
+      result=${PIPESTATUS[0]}
+    fi
   fi
   set -e
 
   local duration=$(( $(date +%s) - start_time ))
 
-  if [[ ${result:-0} -eq 120 ]]; then
+  if [[ ${result} -eq 120 ]]; then
     log FAIL "Execution interrupted by user (Ctrl-C)"
     exit $result
-  elif [[ ${result:-0} -ne 0 ]]; then
+  elif [[ ${result} -ne 0 ]]; then
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    FAILED_TESTS+=("$pb")
     log FAIL "$pb failed after ${duration}s"
+    [[ -n "$pb_log_file" ]] && log INFO "  Details in: $pb_log_file"
     if ! $RUN_ALL; then
       # terminate script
       exit 1
     fi
   else
+    TESTS_PASSED=$((TESTS_PASSED + 1))
     log OK "$pb succeeded in ${duration}s"
   fi
 }
@@ -144,6 +217,15 @@ run_playbook() {
 
 run_tests() {
   log INFO "Running playbooks from $PLAYBOOK_FILE"
+  
+  # Initialize log file if specified
+  if [[ -n "$LOG_FILE" ]]; then
+    log INFO "Test logs will be written to: $LOG_FILE"
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "Test Execution Log - Started at $(date)" > "$LOG_FILE"
+    echo "==========================================" >> "$LOG_FILE"
+  fi
+  
   for cat in $(yaml_categories); do
     if [[ -n "$CATEGORY" && "$CATEGORY" != "all" && "$CATEGORY" != "$cat" ]]; then
       continue
@@ -155,6 +237,14 @@ run_tests() {
       run_playbook "$playbook"
     done
   done
+  
+  # Print summary at the end
+  print_summary
+  
+  # Exit with error if any tests failed
+  if [[ $TESTS_FAILED -gt 0 ]]; then
+    exit 1
+  fi
 }
 
 # --- Sanity Sequence ---------------------------------------------------------
@@ -179,6 +269,8 @@ while [[ $# -gt 0 ]]; do
     -c|--category) CATEGORY="$2"; shift 2 ;;
     -q|--quiet) QUIET=true; shift ;;
     -a|--all) RUN_ALL=true; shift ;;
+    -l|--log) LOG_FILE="$2"; shift 2 ;;
+    -n|--lab-name) LAB_NAME="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -189,5 +281,5 @@ case "$COMMAND" in
   destroy) stop_lab ;;
   sanity) sanity_run ;;
   help) grep '^#  ' "$0" | sed 's/^# \{0,4\}//'; exit 0 ;;
-  *) echo "Usage: $0 {deploy|run|destroy|sanity}"; exit 1 ;;
+  *) echo "Usage: $0 {deploy|run|destroy|sanity|help}"; exit 1 ;;
 esac

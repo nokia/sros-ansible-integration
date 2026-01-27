@@ -1,0 +1,16 @@
+# Test Matrix Configuration
+# Single source of truth for all CI/CD test configurations
+# This file defines which version combinations are tested
+
+test_matrix:
+  python_versions:
+    - '3.13'
+    - '3.14'
+  
+  sros_versions:
+    - '25.7.R2'
+    - '25.10.R1'
+  
+  ansible_versions:
+    - '2.17'
+    - '2.18'

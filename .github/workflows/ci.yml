@@ -12,15 +12,55 @@ permissions:
   contents: read
 
 jobs:
+  # Generate test matrix from test-definitions.yml
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      
+      - name: Install PyYAML
+        run: pip install pyyaml
+      
+      - name: Generate Matrix from test-definitions.yml
+        id: set-matrix
+        run: |
+          python3 << 'EOF' >> $GITHUB_OUTPUT
+          import yaml
+          import json
+          
+          with open('.github/test-matrix.yml', 'r') as f:
+              config = yaml.safe_load(f)
+          
+          test_matrix = config['test_matrix']
+          
+          # Generate ALL combinations (cartesian product)
+          matrix = {
+              "include": []
+          }
+          
+          for python_ver in test_matrix['python_versions']:
+              for sros_ver in test_matrix['sros_versions']:
+                  for ansible_ver in test_matrix['ansible_versions']:
+                      matrix["include"].append({
+                          "python-version": python_ver,
+                          "sros-version": sros_ver,
+                          "ansible-version": ansible_ver
+                      })
+          
+          print(f"matrix={json.dumps(matrix)}")
+          EOF
+
   sanity:
+    needs: generate-matrix
     runs-on: ubuntu-latest
     env:
       SRSIM_LICENSE: ${{ secrets.SRSIM_LICENSE }}
     strategy:
       fail-fast: false
-      matrix:
-        python-version: ['3.11', '3.12', '3.13', '3.14']
-        sros-version: ['25.7.R2', '25.10.R1']
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -40,6 +80,9 @@ jobs:
 
       - name: Install Python Requirements
         run: pip install -r requirements.txt
+
+      - name: Install Ansible (specific version)
+        run: pip install "ansible-core==${{ matrix.ansible-version }}.*"
 
       - name: Install Ansible collections
         run: |

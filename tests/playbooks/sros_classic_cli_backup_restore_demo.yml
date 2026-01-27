@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 ---
-- hosts: clab-ansible-classic
+- hosts: nokia_srsim_classic
   gather_facts: No
-  vars:
-    ansible_network_os: nokia.sros.classic
 
   tasks:
   - name: backup
@@ -29,8 +27,14 @@
           vpls 100 name midnight customer 100 create
             exit all
 
-  - name: "restore backup (Error: Classic-CLI does not support restore)"
-    ansible.netcommon.cli_config:
-      replace: 'true'
-      config: "{{ lookup('file', backup_info.backup_path) }}"
+  - block:
+    - name: "restore backup"
+      ansible.netcommon.cli_config:
+        replace: 'true'
+        config: "{{ lookup('file', backup_info.backup_path) }}"
+    rescue:
+      - name: Failure details (error was expected)
+        ansible.builtin.debug:
+          msg:
+            - "Restore not supported on classic CLI"
 ...

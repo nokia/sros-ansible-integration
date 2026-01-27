@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 ---
-- hosts: clab-ansible-classic
+- hosts: nokia_srsim_classic
   gather_facts: No
-  vars:
-    ansible_network_os: nokia.sros.classic
 
   tasks:
   - name: do some config
