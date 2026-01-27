@@ -15,9 +15,8 @@ topology:
     classic:
       kind: nokia_srsim
       type: sr-1
-      mgmt-ipv4: 172.20.20.220
       env:
-        NOKIA_SROS_CLASSIC: True      
+        CLAB_SROS_CONFIG_MODE: classic      
       startup-config: |
         /configure card 1 card-type iom-1
         /configure card 1 mda 1 mda-type me6-100gb-qsfp28
@@ -46,7 +45,6 @@ topology:
     md:
       kind: nokia_srsim
       type: sr-1
-      mgmt-ipv4: 172.20.20.222
       startup-config: |
         /configure card 1 card-type iom-1
         /configure card 1 mda 1 mda-type me6-100gb-qsfp28
