@@ -32,7 +32,6 @@
 
   - name: "restore backup (Success: MDCLI does support restore)"
     ansible.netcommon.cli_config:
-      replace: 'true'
-      config: "{{ lookup('file', backup_info.backup_path) }}"
+      replace: "{{ backup_info.backup_path }}"
     vars:
-      ansible_command_timeout: 300
+      ansible_command_timeout: 30

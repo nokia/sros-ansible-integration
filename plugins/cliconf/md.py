@@ -247,6 +247,10 @@ class Cliconf(CliconfBase):
                         requests.append(cmd)
                         responses.append(self.send_command(cmd))
             elif replace:
+                if not bool(re.match(r'^[cC][fF][12345]:', replace)):
+                    self._connection.copy_file(source=replace, destination='ansible.cfg', proto='scp', timeout=30)
+                    replace = 'ansible.cfg'
+
                 self.send_command('configure')
                 self.send_command('load full-replace {0}'.format(replace).strip())
 
