@@ -93,8 +93,12 @@ print_summary() {
   log INFO "Test Summary"
   log INFO "========================================="
   log INFO "Total tests:  $total"
-  log OK "Passed:       $TESTS_PASSED"
-  [[ $TESTS_FAILED -gt 0 ]] && log FAIL "Failed:       $TESTS_FAILED" || log INFO "Failed:       $TESTS_FAILED"
+  log INFO "Passed:       $TESTS_PASSED"
+  if [[ $TESTS_FAILED -gt 0 ]]; then
+    log FAIL "Failed:       $TESTS_FAILED"
+  else
+    log INFO "Failed:       $TESTS_FAILED"
+  fi
   
   if [[ $TESTS_FAILED -gt 0 ]]; then
     log INFO ""
@@ -233,9 +237,10 @@ run_tests() {
     
     log INFO "=== CATEGORY: $cat ==="
 
-    yaml_playbooks "$cat" | while IFS= read -r playbook; do    
+    while IFS= read -r playbook; do
+      [[ -n "$playbook" ]] || continue
       run_playbook "$playbook"
-    done
+    done < <(yaml_playbooks "$cat")
   done
   
   # Print summary at the end
