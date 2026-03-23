@@ -29,6 +29,20 @@ jobs:
       - name: Install Ansible
         run: pip install ansible-core
 
+      - name: Update galaxy.yml version from tag
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag '$RELEASE_TAG' (expected semver, e.g. 2.0.1 or v2.0.1)." >&2
+            exit 1
+          fi
+
+          sed -E -i "s/^version:.*/version: ${VERSION}/" galaxy.yml
+          echo "Updated galaxy.yml version to ${VERSION}"
+
       - name: Build and install this collection
         run: |
           ansible-galaxy collection build .

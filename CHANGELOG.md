@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Fixed
 - Ensure `load full-replace` and `rollback` commands are correctly executed in CLI context `configure`
 - Ensure `quit-config` is correctly executed in CLI root context
+- Release workflow to automatically set collection version meta and upload to galaxy
 
 ## [2.0.0]
 ### Added
