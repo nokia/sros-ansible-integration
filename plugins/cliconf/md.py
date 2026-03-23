@@ -276,7 +276,6 @@ class Cliconf(CliconfBase):
             self.send_command('quit-config')
             raise exc
 
-
     def get(self, command, prompt=None, answer=None, sendonly=False, output=None, newline=True, check_all=False):
         if output:
             raise ValueError("'output' value %s is not supported for get" % output)

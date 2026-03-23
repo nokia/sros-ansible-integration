@@ -35,4 +35,4 @@
       replace: 'true'
       config: "{{ lookup('file', backup_info.backup_path) }}"
     vars:
-      ansible_command_timeout: 30
+      ansible_command_timeout: 300
