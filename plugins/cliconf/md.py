@@ -211,7 +211,12 @@ class Cliconf(CliconfBase):
         elif source == 'candidate':
             response = self.send_command(' '.join(['info'] + flags + ['/']))
         else:
+            self.send_command('exit all')
+            if not self.is_config_mode():
+                self.send_command('edit-config read-only')
             response = self.send_command(' '.join(['info', source] + flags + ['/']))
+            self.send_command('exit all')
+            self.send_command('quit-config')
 
         return response
 
