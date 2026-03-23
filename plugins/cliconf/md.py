@@ -175,11 +175,15 @@ class Cliconf(CliconfBase):
         # This Ansible module exits config-mode after any edit-config operation.
         # Therefore, accessing source='candidate' (when running in config-mode)
         # has been implemented for completeness only.
+        #
+        # Source 'active' and 'running' are equivalent. While 'running' covers
+        # the 'persistent-indices { ... }' section too, 'active' covers only the
+        # configuration itself.
 
         if flags is None:
             flags = []
 
-        if source not in ('startup', 'candidate', 'running', 'intended'):
+        if source not in ('startup', 'candidate', 'running', 'intended', 'active'):
             raise ValueError("fetching configuration from %s is not supported" % source)
 
         if format not in self.get_option_values()['format']:
@@ -210,13 +214,15 @@ class Cliconf(CliconfBase):
             self.send_command('quit-config')
         elif source == 'candidate':
             response = self.send_command(' '.join(['info'] + flags + ['/']))
-        else:
+        elif source == 'active':
             self.send_command('exit all')
             if not self.is_config_mode():
                 self.send_command('edit-config read-only')
-            response = self.send_command(' '.join(['info', source] + flags + ['/']))
+            response = self.send_command(' '.join(['info'] + flags + ['/']))
             self.send_command('exit all')
             self.send_command('quit-config')
+        else:
+           response = self.send_command(' '.join(['/admin show configuration', source] + flags))
 
         return response
 
@@ -247,6 +253,7 @@ class Cliconf(CliconfBase):
                         requests.append(cmd)
                         responses.append(self.send_command(cmd))
             elif replace:
+                # if replace from local file, copy to cflash first
                 if not bool(re.match(r'^[cC][fF][12345]:', replace)):
                     self._connection.copy_file(source=replace, destination='ansible.cfg', proto='scp', timeout=30)
                     replace = 'ansible.cfg'
@@ -279,6 +286,7 @@ class Cliconf(CliconfBase):
             self.send_command('exit all')
             self.send_command('quit-config')
             raise exc
+
 
     def get(self, command, prompt=None, answer=None, sendonly=False, output=None, newline=True, check_all=False):
         if output:
