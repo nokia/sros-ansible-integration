@@ -211,7 +211,7 @@ class Cliconf(CliconfBase):
         elif source == 'candidate':
             response = self.send_command(' '.join(['info'] + flags + ['/']))
         else:
-            response = self.send_command(' '.join(['/admin show configuration', source] + flags))
+            response = self.send_command(' '.join(['info', source] + flags + ['/']))
 
         return response
 
