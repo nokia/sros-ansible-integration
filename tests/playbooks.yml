@@ -2,6 +2,7 @@ categories:
   classic-cli:
     description: "Test cases using classic CLI mode"
     playbooks:
+      - playbooks/sros_classic_cli_commission.yml
       - playbooks/sros_classic_cli_config_demo.yml --diff
       - playbooks/sros_classic_cli_backup_restore_demo.yml
       - playbooks/sros_classic_cli_command_demo.yml
