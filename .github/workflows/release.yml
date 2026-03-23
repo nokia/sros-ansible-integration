@@ -72,7 +72,7 @@ jobs:
           files: ${{ env.FILENAME }}
 
       - name: Publish to Ansible Galaxy
-        if: env.ANSIBLE_GALAXY_API_KEY != ''
+        if: ${{ secrets.ANSIBLE_GALAXY_API_KEY != '' }}
         env:
           ANSIBLE_GALAXY_API_KEY: ${{ secrets.ANSIBLE_GALAXY_API_KEY }}
         run: |
@@ -80,7 +80,7 @@ jobs:
           ansible-galaxy collection publish ${{ env.FILENAME }} --api-key "$ANSIBLE_GALAXY_API_KEY"
 
       - name: Skip Publishing to Ansible Galaxy
-        if: env.ANSIBLE_GALAXY_API_KEY == ''
+        if: ${{ secrets.ANSIBLE_GALAXY_API_KEY == '' }}
         run: |
           echo "::warning::No ANSIBLE_GALAXY_API_KEY found. Skipping Galaxy publish."
           echo "To enable automatic publishing, add this secret in repository settings."
