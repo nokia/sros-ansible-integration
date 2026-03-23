@@ -8,10 +8,8 @@
 
   tasks:
   - name: backup
-    ansible.netcommon.cli_config:
-      backup: yes
-      backup_options:
-        dir_path: /tmp
+    ansible.netcommon.cli_backup:
+      dir_path: /tmp
     register: backup_info
 
   - name: backup details
@@ -31,7 +29,5 @@
           exit all
 
   - name: "restore backup (Success: MDCLI does support restore)"
-    cli_config:
-      replace: 'true'
-      config: "{{ lookup('file', backup_info.backup_path) }}"
-...
+    ansible.netcommon.cli_config:
+      replace: "{{ backup_info.backup_path }}"
