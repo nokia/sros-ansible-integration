@@ -11,7 +11,7 @@ categories:
     description: "Test cases using mode-driven CLI mode"
     playbooks:
       - playbooks/sros_mdcli_config_demo.yml --diff
-      - playbooks/sros_mdcli_backup_restore_demo.yml
+      - playbooks/sros_mdcli_backup_restore_demo.yml -vvvv
       - playbooks/sros_mdcli_bulk_demo.yml --diff
       - playbooks/sros_mdcli_command_demo.yml
 
