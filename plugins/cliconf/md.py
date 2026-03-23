@@ -1,4 +1,4 @@
-# (c) 2025 Nokia
+# (c) 2026 Nokia
 #
 # Licensed under the BSD 3 Clause license
 # SPDX-License-Identifier: BSD-3-Clause
@@ -35,28 +35,24 @@ except ImportError:
 class Cliconf(CliconfBase):
 
     def get_device_operations(self):
-        return {                                    # supported: ---------------
-            'supports_commit': True,                # identify if commit is supported by device or not
-            'supports_rollback': True,              # identify if rollback is supported or not
-            'supports_defaults': True,              # identify if fetching running config with default is supported
-            'supports_onbox_diff': True,            # identify if on box diff capability is supported or not
-            'supports_replace': True,               # identify if running config replace with candidate config is supported
-                                                    # unsupported: -------------
-            'supports_admin': False,                # no admin-mode
-            'supports_multiline_delimiter': False,  # no multiline delimiter
-            'supports_commit_label': False,         # no commit-label
-            'supports_commit_comment': False,       # no commit-comment
-            'supports_generate_diff': False,        # not supported
-            'supports_diff_replace': False,         # not supported
-            'supports_diff_match': False,           # not supported
-            'supports_diff_ignore_lines': False     # not supported
+        return {
+            "supports_commit": True,
+            "supports_rollback": True,
+            "supports_defaults": True,
+            "supports_onbox_diff": True,
+            "supports_commit_comment": True,
+            "supports_replace": True,
+
+            "supports_multiline_delimiter": False,
+            "supports_generate_diff": False,
+            "supports_diff_replace": False,
+            "supports_diff_match": False,
+            "supports_diff_ignore_lines": False,
+
         }
 
     def get_sros_rpc(self):
         return [
-            'get_config',          # Retrieves the specified configuration from the device
-            'edit_config',         # Loads the specified commands into the remote device
-            'get',                 # Execute specified command on remote device
             'get_capabilities',    # Retrieves device information and supported rpc methods
             'get_default_flag',    # CLI option to include defaults for config dumps
             'commit',              # Load configuration from candidate to running
@@ -64,9 +60,8 @@ class Cliconf(CliconfBase):
         ]
 
     def get_option_values(self):
-        # format: json is supported from SROS19.10 onwards in MD MODE only
         return {
-            'format': ['text', 'json'],
+            'format': ['text', 'flat', 'json', 'xml'],
             'diff_match': [],
             'diff_replace': [],
             'output': ['text']
@@ -103,7 +98,7 @@ class Cliconf(CliconfBase):
     def get_capabilities(self):
         capabilities = super(Cliconf, self).get_capabilities()
         capabilities['device_operations'] = self.get_device_operations()
-        capabilities['rpc'] = self.get_sros_rpc()
+        capabilities['rpc'] += self.get_sros_rpc()
         capabilities['device_info'] = self.get_device_info()
         capabilities['network_api'] = 'cliconf'
         capabilities.update(self.get_option_values())
@@ -127,7 +122,7 @@ class Cliconf(CliconfBase):
         plugin is using private mode to avoid interference with concurrent
         MD-CLI or NETCONF sessions.
 
-        Note, that is Ansible module will use "edit-config private" and
+        Note, that is Ansible module uses "edit-config private" and
         "quit-config" to enter and leave configuration mode. The
         alternative of using "configure private" is not supported.
 
@@ -177,7 +172,14 @@ class Cliconf(CliconfBase):
         return not match or match.group(1) == 'classic'
 
     def get_config(self, source='running', format='text', flags=None):
-        if source not in ('startup', 'running', 'candidate'):
+        # This Ansible module exits config-mode after any edit-config operation.
+        # Therefore, accessing source='candidate' (when running in config-mode)
+        # has been implemented for completeness only.
+
+        if flags is None:
+            flags = []
+
+        if source not in ('startup', 'candidate', 'running', 'intended'):
             raise ValueError("fetching configuration from %s is not supported" % source)
 
         if format not in self.get_option_values()['format']:
@@ -189,38 +191,27 @@ class Cliconf(CliconfBase):
         if self.is_classic_cli():
             self.send_command('/!md-cli')
 
-        if format == 'text':
-            cmd = 'info %s %s' % (source, ' '.join(flags))
-        else:
-            cmd = 'info %s %s %s' % (source, format, ' '.join(flags))
+        if source == 'startup' and self.is_config_mode():
+            raise ValueError("fetching startup configuration in config mode is not supported")
 
-        self.send_command('exit all')
-        if self.is_config_mode():
-            # This Ansible module always exists config-mode after any edit-config
-            # MD-CLI operation. Therefore the code below should actually never be
-            # executed.
-            # If get_config() is called with source='candidate', it is somewhat
-            # assumed that we are in config-mode, because in operational mode
-            # there is no candidate (aka candidate=running).
+        if source == 'candidate' and not self.is_config_mode():
+            raise ValueError("fetching candidate configuration is only supported in config mode")
 
-            response = self.send_command(cmd.strip())
-        else:
-            # This Ansible plugin calls 'info' rather then 'admin show configuration'
-            # because it provides additional options such as 'info detail' to include
-            # default values. Also it would support alternative output formats (json).
+        if format != 'text':
+            flags = [format] + flags
 
-            if source == 'startup':
-                self.send_command('edit-config private')
-                self.send_command('configure')
-                self.send_command('rollback startup')
-                self.send_command('exit all')
-                response = self.send_command(cmd.strip())
-                self.send_command('discard')
-            else:
-                self.send_command('edit-config read-only')
-                self.send_command('environment more false')
-                response = self.send_command(cmd.strip())
+        if source == 'startup':
+            self.enable_config_mode()
+            self.send_command('configure')
+            self.send_command('rollback startup')
+            response = self.send_command(' '.join(['info'] + flags + ['/']))
+            self.send_command('discard')
+            self.send_command('exit all')
             self.send_command('quit-config')
+        elif source == 'candidate':
+            response = self.send_command(' '.join(['info'] + flags + ['/']))
+        else:
+            response = self.send_command(' '.join(['/admin show configuration', source] + flags))
 
         return response
 
@@ -237,41 +228,49 @@ class Cliconf(CliconfBase):
         responses = []
 
         try:
-            if replace:
-                if candidate:
+            if candidate:
+                if replace:
                     cmd = 'delete configure'
-                else:
-                    cmd = 'load full-replace {0}'.format(replace).strip()
-                requests.append(cmd)
-                responses.append(self.send_command(cmd))
-
-            for cmd in to_list(candidate):
-                if isinstance(cmd, Mapping):
-                    requests.append(cmd['command'])
-                    responses.append(self.send_command(**cmd))
-                else:
                     requests.append(cmd)
                     responses.append(self.send_command(cmd))
 
-        except AnsibleConnectionFailure as exc:
-            self.send_command('exit all')
-            self.send_command('discard')
-            self.send_command('quit-config')
-            raise exc
+                for cmd in to_list(candidate):
+                    if isinstance(cmd, Mapping):
+                        requests.append(cmd['command'])
+                        responses.append(self.send_command(**cmd))
+                    else:
+                        requests.append(cmd)
+                        responses.append(self.send_command(cmd))
+            elif replace:
+                self.send_command('configure')
+                self.send_command('load full-replace {0}'.format(replace).strip())
 
-        self.send_command('exit all')
-        diffs = self.send_command('compare').strip()
-        if diffs:
+            diffs = self.send_command('compare /').strip()
+
             if commit:
-                self.send_command('commit')
-                self.send_command('quit-config')
+                if comment:
+                    safe_comment = comment.replace('"', "'")
+                    self.send_command('commit comment "%s"' % safe_comment)
+                else:
+                    self.send_command('commit')
             else:
                 self.send_command('validate')
                 self.send_command('discard')
-                self.send_command('quit-config')
-            return {'request': requests, 'response': responses, 'diff': diffs}
-        else:
-            return {'request': requests, 'response': responses}
+
+            self.send_command('exit all')
+            self.send_command('quit-config')
+
+            if diffs:
+                return {'request': requests, 'response': responses, 'diff': diffs}
+            else:
+                return {'request': requests, 'response': responses}
+
+        except AnsibleConnectionFailure as exc:
+            self.send_command('discard')
+            self.send_command('exit all')
+            self.send_command('quit-config')
+            raise exc
+
 
     def get(self, command, prompt=None, answer=None, sendonly=False, output=None, newline=True, check_all=False):
         if output:
@@ -285,20 +284,31 @@ class Cliconf(CliconfBase):
 
         self.enable_config_mode()
 
-        self.send_command('configure')
-        self.send_command('rollback {0}'.format(rollback_id).strip())
-        self.send_command('exit all')
-        diffs = self.send_command('compare').strip()
-        if diffs:
+        try:
+            self.send_command('configure')
+            self.send_command('rollback {0}'.format(rollback_id).strip())
+
+            diffs = self.send_command('compare /').strip()
+
             if commit:
                 self.send_command('commit')
-                self.send_command('quit-config')
             else:
+                self.send_command('validate')
                 self.send_command('discard')
-                self.send_command('quit-config')
-            return {'diff': diffs.strip()}
-        else:
-            return {}
+
+            self.send_command('exit all')
+            self.send_command('quit-config')
+
+            if diffs:
+                return {'diff': diffs}
+            else:
+                return {}
+
+        except AnsibleConnectionFailure as exc:
+            self.send_command('discard')
+            self.send_command('exit all')
+            self.send_command('quit-config')
+            raise exc
 
     def commit(self):
         if self.is_classic_cli():
@@ -306,6 +316,7 @@ class Cliconf(CliconfBase):
 
         if self.is_config_mode():
             self.send_command('commit')
+            self.send_command('exit all')
             self.send_command('quit-config')
 
     def discard_changes(self):
@@ -314,4 +325,5 @@ class Cliconf(CliconfBase):
 
         if self.is_config_mode():
             self.send_command('discard')
+            self.send_command('exit all')
             self.send_command('quit-config')
