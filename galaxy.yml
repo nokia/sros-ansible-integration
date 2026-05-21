@@ -18,10 +18,10 @@ tags:
 dependencies:
   ansible.netcommon: ">=5.2.0"
   ansible.utils: ">=3.0.0"
-repository: https://github.com/nokia/sros-ansible-collection
-documentation: https://github.com/nokia/sros-ansible-collection
-homepage: https://github.com/nokia/sros-ansible-collection
-issues: https://github.com/nokia/sros-ansible-collection/issues
+repository: https://github.com/nokia/sros-ansible-integration
+documentation: https://github.com/nokia/sros-ansible-integration
+homepage: https://github.com/nokia/sros-ansible-integration
+issues: https://github.com/nokia/sros-ansible-integration/issues
 
 build_ignore:
   - .github/

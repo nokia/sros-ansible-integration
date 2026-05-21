@@ -64,7 +64,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sros-ansible-collection
+          name: sros-ansible-integration
           path: ${{ env.FILENAME }}
 
       - name: Attach collection to GitHub release
